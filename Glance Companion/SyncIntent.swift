@@ -35,10 +35,10 @@ struct SyncGlanceIntent: AppIntent {
         }
 
         bleManager.addLog("[Shortcut] Sync triggered — \(data.events.count) events, \(data.reminders.count) reminders")
-        bleManager.sendData(json)
+        try await bleManager.connectAndSend(json)
 
         return .result(
-            dialog: "Syncing \(data.events.count) event(s) and \(data.reminders.count) reminder(s) to Glance."
+            dialog: "Synced \(data.events.count) event(s) and \(data.reminders.count) reminder(s) to Glance."
         )
     }
 }

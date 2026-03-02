@@ -14,26 +14,28 @@ struct MainView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Connection & Sync Section
-                    ConnectionSection(
-                        bleManager: bleManager,
-                        useDemoData: appState.useDemoData,
-                        syncAction: syncToX4
-                    )
-
-                    // Calendar & Reminders Selection
-                    CalendarSection(calendarManager: calendarManager)
-
-                    // Display Settings
-                    SettingsSection(
-                        config: $appState.displayConfig,
-                        useDemoData: $appState.useDemoData
-                    )
+            GlassEffectContainer {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Connection & Sync Section
+                        ConnectionSection(
+                            bleManager: bleManager,
+                            useDemoData: appState.useDemoData,
+                            syncAction: syncToX4
+                        )
+                        
+                        // Calendar & Reminders Selection
+                        CalendarSection(calendarManager: calendarManager)
+                        
+                        // Display Settings
+                        SettingsSection(
+                            config: $appState.displayConfig,
+                            useDemoData: $appState.useDemoData
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 20)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 20)
             }
             .navigationTitle("Glance Companion")
         }

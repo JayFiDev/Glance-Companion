@@ -31,6 +31,7 @@ final class BLEManager: NSObject {
     private var targetCharacteristic: CBCharacteristic?
     private var readCompletionHandler: (([String]) -> Void)?
     private let bleQueue = DispatchQueue(label: "com.glance.ble", qos: .userInitiated)
+    private var pendingWriteCount = 0
 
     // Must match ESP32 firmware UUIDs
     private let serviceUUID = CBUUID(string: "12345678-1234-1234-1234-123456789012")
@@ -98,19 +99,51 @@ final class BLEManager: NSObject {
         }
 
         isSending = true
+        pendingWriteCount = 0
         addLog("Sending \(data.count) bytes...")
 
-        // Send in chunks for reliable delivery
         var offset = 0
         while offset < data.count {
             let end = min(offset + chunkSize, data.count)
             let chunk = data.subdata(in: offset..<end)
-
             peripheral.writeValue(chunk, for: characteristic, type: .withResponse)
+            pendingWriteCount += 1
             offset = end
         }
+        // isSending cleared in didWriteValueFor once all chunks are acknowledged
+    }
 
-        // The last didWriteValueFor callback will clear isSending
+    /// Scans for the X4, connects, and sends data — for use from Shortcuts/AppIntents.
+    /// Waits up to 5 s for Bluetooth, 15 s for connection, 15 s for transfer.
+    @MainActor
+    func connectAndSend(_ data: Data) async throws {
+        // Wait for Bluetooth to be powered on (CBCentralManager initialises asynchronously)
+        let btDeadline = Date().addingTimeInterval(5)
+        while centralManager?.state != .poweredOn {
+            if Date() >= btDeadline { throw BLEError.bluetoothUnavailable }
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+
+        // Start scanning if not already connected
+        if connectedPeripheral == nil {
+            startScanning()
+        }
+
+        // Wait for characteristic to be ready (connected + services + characteristics discovered)
+        let connDeadline = Date().addingTimeInterval(15)
+        while targetCharacteristic == nil {
+            if Date() >= connDeadline { throw BLEError.connectionTimeout }
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+
+        sendData(data)
+
+        // Wait for all chunks to be acknowledged
+        let sendDeadline = Date().addingTimeInterval(15)
+        while isSending {
+            if Date() >= sendDeadline { throw BLEError.sendTimeout }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
     }
 
     func readCompletions(completion: @escaping ([String]) -> Void) {
@@ -253,10 +286,15 @@ extension BLEManager: CBPeripheralDelegate {
         error: Error?
     ) {
         DispatchQueue.main.async {
-            self.isSending = false
             if let error {
                 self.addLog("Write error: \(error.localizedDescription)")
-            } else {
+                self.isSending = false
+                self.pendingWriteCount = 0
+                return
+            }
+            self.pendingWriteCount -= 1
+            if self.pendingWriteCount <= 0 {
+                self.isSending = false
                 self.addLog("Data sent successfully")
             }
         }
@@ -289,6 +327,22 @@ extension BLEManager: CBPeripheralDelegate {
                 self.readCompletionHandler?([])
             }
             self.readCompletionHandler = nil
+        }
+    }
+}
+
+// MARK: - Errors
+
+enum BLEError: Error, LocalizedError {
+    case bluetoothUnavailable
+    case connectionTimeout
+    case sendTimeout
+
+    var errorDescription: String? {
+        switch self {
+        case .bluetoothUnavailable: return "Bluetooth is not available or powered off."
+        case .connectionTimeout:    return "Could not find or connect to Glance X4."
+        case .sendTimeout:          return "Data transfer timed out."
         }
     }
 }

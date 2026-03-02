@@ -82,15 +82,17 @@ struct SettingsSection: View {
             // MARK: Sleep Screen
 
             VStack(alignment: .leading, spacing: 8) {
-                Label("Sleep Screen", systemImage: "display")
-                    .font(.subheadline)
-
-                Picker("Sleep Screen", selection: $config.sleepScreen) {
-                    ForEach(SleepScreenMode.allCases, id: \.self) { mode in
-                        Label(mode.label, systemImage: mode.icon).tag(mode)
+                HStack {
+                    Label("Sleep Screen", systemImage: "display")
+                        .font(.subheadline)
+                    Spacer()
+                    Picker("Sleep Screen", selection: $config.sleepScreen) {
+                        ForEach(SleepScreenMode.allCases, id: \.self) { mode in
+                            Label(mode.label, systemImage: mode.icon).tag(mode)
+                        }
                     }
+                    .pickerStyle(.menu)
                 }
-                .pickerStyle(.menu)
             }
 
             Divider()

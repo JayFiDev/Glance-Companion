@@ -14,6 +14,7 @@ This project is **not affiliated with Xteink**; it's built as a community projec
 - **Calendar sync** — Sends upcoming events (next 7 days) from selected calendars to the X4
 - **Reminders sync** — Sends incomplete reminders from selected reminder lists
 - **Two-way sync** — Reads back completed reminder IDs from the X4 and marks them done in Apple Reminders
+- **Auto-sync intent** - Automatically sync using Shortcut automations once a day
 
 ## Requirements
 
